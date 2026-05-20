@@ -117,300 +117,138 @@
     </div>
 
     <script>
-        // Tailwind script
-        function initTailwind() {
-            document.documentElement.style.setProperty('--accent', '#c53030');
-        }
+        function initTailwind() { document.documentElement.style.setProperty('--accent', '#c53030'); }
 
-        // Game variables
-        let scene, camera, renderer;
-        let clock;
-        let yaw = 0;
-        let pitch = -0.15;
+        let scene, camera, renderer, clock;
+        let yaw = 0, pitch = -0.15;
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        let lastShotTime = 0;
-        let score = 0;
-        let projectiles = [];
-        let particles = [];
-        let enemies = [];
-        let wallAABBs = [];
-        const GRAVITY = 22;
-        const PLAYER_SPEED = 11;
-        const BULLET_SPEED = 48;
-        const PLAYER_RADIUS = 0.55;
-        const FLOOR_Y = 0;
-
-        // Touch look
-        let isLooking = false;
-        let lastTouchX = 0;
-        let lastTouchY = 0;
+        let lastShotTime = 0, score = 0;
+        let projectiles = [], particles = [], enemies = [], wallAABBs = [];
+        let goblinTexture = null;
+        const GRAVITY = 22, PLAYER_SPEED = 11, BULLET_SPEED = 48, PLAYER_RADIUS = 0.55, FLOOR_Y = 0;
+        let isLooking = false, lastTouchX = 0, lastTouchY = 0;
         const LOOK_SENS = 0.0032;
 
-        function updateScore() {
-            const el = document.getElementById('score');
-            el.textContent = score.toString().padStart(5, '0');
-        }
+        function updateScore() { document.getElementById('score').textContent = score.toString().padStart(5, '0'); }
+        function updateTargetsLeft() { document.getElementById('targets-left').textContent = enemies.length; }
 
-        function updateTargetsLeft() {
-            const el = document.getElementById('targets-left');
-            el.textContent = enemies.length;
-        }
-
-        function createWallAABB(minX, maxX, minZ, maxZ) {
-            wallAABBs.push({ minX, maxX, minZ, maxZ });
-        }
+        function createWallAABB(minX, maxX, minZ, maxZ) { wallAABBs.push({ minX, maxX, minZ, maxZ }); }
 
         function checkPlayerCollision(x, z) {
             const r = PLAYER_RADIUS;
             for (const wall of wallAABBs) {
-                if (x + r > wall.minX && x - r < wall.maxX &&
-                    z + r > wall.minZ && z - r < wall.maxZ) {
-                    return true;
-                }
+                if (x + r > wall.minX && x - r < wall.maxX && z + r > wall.minZ && z - r < wall.maxZ) return true;
             }
             return false;
         }
 
         function createParticle(pos, velocity, life, color, isDebris = false) {
-            const size = isDebris ? (0.12 + Math.random() * 0.18) : (0.06 + Math.random() * 0.08);
-            const geo = new THREE.SphereGeometry(size, 5, 5);
-            const mat = new THREE.MeshPhongMaterial({
-                color: color,
-                emissive: isDebris ? 0x111111 : color,
-                transparent: true,
-                opacity: 0.95,
-                shininess: isDebris ? 2 : 10
-            });
-            const mesh = new THREE.Mesh(geo, mat);
+            const size = isDebris ? (0.12 + Math.random()*0.18) : (0.06 + Math.random()*0.08);
+            const mesh = new THREE.Mesh(new THREE.SphereGeometry(size,5,5), new THREE.MeshPhongMaterial({color, emissive: isDebris?0x111111:color, transparent:true, opacity:0.95}));
             mesh.position.copy(pos);
             scene.add(mesh);
-
-            particles.push({
-                mesh,
-                vel: velocity,
-                life: life,
-                maxLife: life,
-                isDebris
-            });
+            particles.push({mesh, vel: velocity, life, maxLife: life, isDebris});
         }
 
         function createMuzzleFlash(pos, direction) {
-            for (let i = 0; i < 9; i++) {
-                const vel = direction.clone().multiplyScalar(7 + Math.random() * 6);
-                vel.x += (Math.random() - 0.5) * 2.2;
-                vel.y += (Math.random() - 0.5) * 1.8;
-                vel.z += (Math.random() - 0.5) * 2.2;
-                const life = 0.18 + Math.random() * 0.12;
-                createParticle(pos, vel, life, 0xffee88, false);
+            for (let i=0; i<9; i++) {
+                const vel = direction.clone().multiplyScalar(7 + Math.random()*6);
+                vel.x += (Math.random()-0.5)*2.2; vel.y += (Math.random()-0.5)*1.8; vel.z += (Math.random()-0.5)*2.2;
+                createParticle(pos, vel, 0.18 + Math.random()*0.12, 0xffee88, false);
             }
         }
 
-        function createImpactParticles(pos, isFloor = false) {
+        function createImpactParticles(pos, isFloor=false) {
             const count = isFloor ? 12 : 18;
-            const colors = isFloor ? [0x555555, 0x777744, 0x664422] : [0xff4422, 0xaa2211, 0xffaa33, 0x442211];
-            
-            for (let i = 0; i < count; i++) {
-                const vel = new THREE.Vector3(
-                    (Math.random() - 0.5) * (isFloor ? 6 : 11),
-                    isFloor ? (1.5 + Math.random() * 4) : (3 + Math.random() * 9),
-                    (Math.random() - 0.5) * (isFloor ? 6 : 11)
-                );
-                if (!isFloor) {
-                    // slight upward bias for wall hits
-                    vel.y = Math.max(vel.y, 1);
-                }
-                const life = isFloor ? (0.6 + Math.random() * 0.7) : (0.9 + Math.random() * 1.1);
-                const col = colors[Math.floor(Math.random() * colors.length)];
-                createParticle(pos, vel, life, col, true);
+            const colors = isFloor ? [0x555555,0x777744,0x664422] : [0xff4422,0xaa2211,0xffaa33,0x442211];
+            for (let i=0; i<count; i++) {
+                const vel = new THREE.Vector3((Math.random()-0.5)*(isFloor?6:11), isFloor?(1.5+Math.random()*4):(3+Math.random()*9), (Math.random()-0.5)*(isFloor?6:11));
+                if(!isFloor) vel.y = Math.max(vel.y,1);
+                createParticle(pos, vel, isFloor ? (0.6+Math.random()*0.7) : (0.9+Math.random()*1.1), colors[Math.floor(Math.random()*colors.length)], true);
             }
         }
 
         function createExplosion(pos) {
-            // Big satisfying explosion
-            for (let i = 0; i < 26; i++) {
-                const vel = new THREE.Vector3(
-                    (Math.random() - 0.5) * 13,
-                    (Math.random() * 11) + 2,
-                    (Math.random() - 0.5) * 13
-                );
-                const life = 1.1 + Math.random() * 1.3;
-                const colors = [0xff3311, 0xcc2200, 0xffaa22, 0x552200];
-                const col = colors[Math.floor(Math.random() * colors.length)];
-                createParticle(pos, vel, life, col, true);
+            for (let i=0; i<26; i++) {
+                const vel = new THREE.Vector3((Math.random()-0.5)*13, (Math.random()*11)+2, (Math.random()-0.5)*13);
+                createParticle(pos, vel, 1.1 + Math.random()*1.3, [0xff3311,0xcc2200,0xffaa22,0x552200][Math.floor(Math.random()*4)], true);
             }
         }
 
         function fireProjectile() {
-            const now = Date.now();
-            if (now - lastShotTime < 140) return; // fire rate limit
-            lastShotTime = now;
-
-            const dir = new THREE.Vector3();
-            camera.getWorldDirection(dir);
-
-            // Start slightly in front of camera
-            const startPos = camera.position.clone().add(dir.clone().multiplyScalar(1.4));
-            startPos.y += 0.05; // slight gun height
-
-            const projGeo = new THREE.SphereGeometry(0.13, 7, 7);
-            const projMat = new THREE.MeshPhongMaterial({
-                color: 0xffcc33,
-                emissive: 0xff6600,
-                shininess: 30
-            });
-            const projMesh = new THREE.Mesh(projGeo, projMat);
-            projMesh.position.copy(startPos);
-            scene.add(projMesh);
-
-            const vel = dir.clone().multiplyScalar(BULLET_SPEED);
-            // Add very slight gravity arc
-            vel.y -= 1.5;
-
-            projectiles.push({
-                mesh: projMesh,
-                vel: vel,
-                life: 2.8
-            });
-
-            // Muzzle flash
+            if (Date.now() - lastShotTime < 140) return;
+            lastShotTime = Date.now();
+            const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+            const startPos = camera.position.clone().add(dir.clone().multiplyScalar(1.4)); startPos.y += 0.05;
+            const projMesh = new THREE.Mesh(new THREE.SphereGeometry(0.13,7,7), new THREE.MeshPhongMaterial({color:0xffcc33, emissive:0xff6600}));
+            projMesh.position.copy(startPos); scene.add(projMesh);
+            const vel = dir.clone().multiplyScalar(BULLET_SPEED); vel.y -= 1.5;
+            projectiles.push({mesh:projMesh, vel, life:2.8});
             createMuzzleFlash(startPos, dir);
         }
 
         function updateProjectiles(dt) {
-            for (let i = projectiles.length - 1; i >= 0; i--) {
+            for (let i=projectiles.length-1; i>=0; i--) {
                 const p = projectiles[i];
-                p.vel.y -= GRAVITY * 0.6 * dt; // light gravity
-                p.mesh.position.x += p.vel.x * dt;
-                p.mesh.position.y += p.vel.y * dt;
-                p.mesh.position.z += p.vel.z * dt;
+                p.vel.y -= GRAVITY*0.6*dt;
+                p.mesh.position.x += p.vel.x*dt; p.mesh.position.y += p.vel.y*dt; p.mesh.position.z += p.vel.z*dt;
                 p.life -= dt;
-
-                let hit = false;
-                const pos = p.mesh.position;
-
-                // Floor hit
-                if (pos.y < 0.25) {
-                    createImpactParticles(pos.clone(), true);
-                    hit = true;
-                }
-
-                // Wall collision (simple AABB)
-                for (const wall of wallAABBs) {
-                    if (pos.x > wall.minX && pos.x < wall.maxX &&
-                        pos.z > wall.minZ && pos.z < wall.maxZ) {
-                        createImpactParticles(pos.clone());
-                        hit = true;
-                        break;
-                    }
-                }
-
-                // Out of bounds
-                if (Math.abs(pos.x) > 23 || Math.abs(pos.z) > 23) {
-                    hit = true;
-                }
-
-                if (hit || p.life <= 0) {
-                    scene.remove(p.mesh);
-                    projectiles.splice(i, 1);
-                }
+                let hit = p.mesh.position.y < 0.25;
+                for (const w of wallAABBs) { if (p.mesh.position.x>w.minX && p.mesh.position.x<w.maxX && p.mesh.position.z>w.minZ && p.mesh.position.z<w.maxZ) {hit=true; break;} }
+                if (Math.abs(p.mesh.position.x)>23 || Math.abs(p.mesh.position.z)>23) hit=true;
+                if (hit || p.life<=0) { scene.remove(p.mesh); projectiles.splice(i,1); if(hit) createImpactParticles(p.mesh.position.clone(), p.mesh.position.y<0.3); }
             }
         }
 
         function updateParticles(dt) {
-            for (let i = particles.length - 1; i >= 0; i--) {
+            for (let i=particles.length-1; i>=0; i--) {
                 const p = particles[i];
                 p.vel.y -= GRAVITY * dt;
-                p.mesh.position.x += p.vel.x * dt;
-                p.mesh.position.y += p.vel.y * dt;
-                p.mesh.position.z += p.vel.z * dt;
+                p.mesh.position.x += p.vel.x*dt; p.mesh.position.y += p.vel.y*dt; p.mesh.position.z += p.vel.z*dt;
                 p.life -= dt;
-
-                // Fade
-                const alpha = Math.max(0.05, p.life / p.maxLife);
-                if (p.mesh.material) p.mesh.material.opacity = alpha;
-
-                // Floor bounce for debris
+                if (p.mesh.material) p.mesh.material.opacity = Math.max(0.05, p.life / p.maxLife);
                 if (p.isDebris && p.mesh.position.y < 0.15 && p.vel.y < 0) {
-                    p.mesh.position.y = 0.15;
-                    p.vel.y = -p.vel.y * 0.45;
-                    p.vel.x *= 0.65;
-                    p.vel.z *= 0.65;
-                    if (Math.abs(p.vel.y) < 2.5) {
-                        p.life = Math.min(p.life, 0.4);
-                    }
+                    p.mesh.position.y = 0.15; p.vel.y *= -0.45; p.vel.x*=0.65; p.vel.z*=0.65;
+                    if (Math.abs(p.vel.y)<2.5) p.life = Math.min(p.life, 0.4);
                 }
-
-                if (p.life <= 0) {
-                    scene.remove(p.mesh);
-                    particles.splice(i, 1);
-                }
+                if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i,1); }
             }
         }
 
         function checkProjectileEnemyCollisions() {
-            for (let i = projectiles.length - 1; i >= 0; i--) {
+            for (let i=projectiles.length-1; i>=0; i--) {
                 const proj = projectiles[i];
-                if (!proj.mesh) continue;
-
-                for (let j = enemies.length - 1; j >= 0; j--) {
-                    const enemy = enemies[j];
-                    if (!enemy.mesh) continue;
-
-                    const dist = proj.mesh.position.distanceTo(enemy.mesh.position);
-                    if (dist < 1.65) {
-                        // Hit!
+                for (let j=enemies.length-1; j>=0; j--) {
+                    if (proj.mesh.position.distanceTo(enemies[j].mesh.position) < 1.65) {
                         createExplosion(proj.mesh.position);
-                        scene.remove(proj.mesh);
-                        projectiles.splice(i, 1);
-
-                        // Destroy enemy
-                        scene.remove(enemy.mesh);
-                        enemies.splice(j, 1);
-                        score += 125;
-                        updateScore();
-                        updateTargetsLeft();
-
-                        // Respawn a new target after delay
-                        setTimeout(() => {
-                            if (enemies.length < 5) {
-                                spawnEnemy();
-                            }
-                        }, 2200);
-                        return; // only one hit per frame
+                        scene.remove(proj.mesh); projectiles.splice(i,1);
+                        scene.remove(enemies[j].mesh); enemies.splice(j,1);
+                        score += 125; updateScore(); updateTargetsLeft();
+                        setTimeout(() => { if (enemies.length < 5) spawnEnemy(); }, 2200);
+                        return;
                     }
                 }
             }
         }
 
         function spawnEnemy() {
-            const positions = [
-                [-13, 0.95, -13], [13, 0.95, -13],
-                [-13, 0.95, 11], [11, 0.95, 13],
-                [0, 0.95, -10], [-9, 0.95, 8],
-                [8, 0.95, -7]
-            ];
-            
-            // Find a position not too close to player and not overlapping existing
-            let pos;
-            let attempts = 0;
-            do {
-                pos = positions[Math.floor(Math.random() * positions.length)];
-                attempts++;
-            } while (attempts < 8 && camera.position.distanceTo(new THREE.Vector3(pos[0], 1.6, pos[2])) < 6);
+            const positions = [[-13,0.95,-13],[13,0.95,-13],[-13,0.95,11],[11,0.95,13],[0,0.95,-10],[-9,0.95,8],[8,0.95,-7]];
+            let pos; let attempts=0;
+            do { pos = positions[Math.floor(Math.random()*positions.length)]; attempts++; }
+            while (attempts < 8 && camera.position.distanceTo(new THREE.Vector3(pos[0],1.6,pos[2])) < 6);
 
-            const geo = new THREE.CylinderGeometry(0.65, 0.55, 1.75, 7);
-            const mat = new THREE.MeshPhongMaterial({
-                color: 0x9f1f1f,
-                emissive: 0x4a0f0f,
-                shininess: 8,
-                flatShading: true
-            });
-            const mesh = new THREE.Mesh(geo, mat);
+            let mesh;
+            if (goblinTexture) {
+                const geo = new THREE.PlaneGeometry(1.5, 2.1);
+                const mat = new THREE.MeshBasicMaterial({ map: goblinTexture, transparent: true, side: THREE.DoubleSide });
+                mesh = new THREE.Mesh(geo, mat);
+                mesh.userData.isGoblin = true;
+            } else {
+                const geo = new THREE.CylinderGeometry(0.65, 0.55, 1.75, 7);
+                const mat = new THREE.MeshPhongMaterial({ color: 0x9f1f1f, emissive: 0x4a0f0f });
+                mesh = new THREE.Mesh(geo, mat);
+            }
             mesh.position.set(pos[0], pos[1], pos[2]);
-            
-            // Add slight random rotation
-            mesh.rotation.y = Math.random() * Math.PI * 2;
-
             scene.add(mesh);
             enemies.push({ mesh });
             updateTargetsLeft();
@@ -419,321 +257,80 @@
         function setupScene() {
             scene = new THREE.Scene();
             scene.fog = new THREE.Fog(0x111111, 7, 45);
-
-            camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 100);
-            camera.position.set(0, 1.65, 6);
-            camera.rotation.order = 'YXZ';
-
-            renderer = new THREE.WebGLRenderer({ 
-                antialias: true, 
-                powerPreference: "high-performance"
-            });
+            camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 100);
+            camera.position.set(0, 1.65, 6); camera.rotation.order = 'YXZ';
+            renderer = new THREE.WebGLRenderer({antialias:true});
             renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = false;
             document.getElementById('game-container').appendChild(renderer.domElement);
 
-            // === IMPROVED LIGHTING ===
-            // Brighter ambient for visibility
-            const ambient = new THREE.AmbientLight(0x5a5a5a, 0.82);
-            scene.add(ambient);
+            scene.add(new THREE.AmbientLight(0x5a5a5a, 0.82));
+            const dir = new THREE.DirectionalLight(0xfff4d9, 1.3); dir.position.set(12,22,8); scene.add(dir);
+            scene.add(new THREE.HemisphereLight(0xaaaabb, 0x1a1a1a, 0.45));
+            const red = new THREE.PointLight(0xff3311, 0.7, 28); red.position.set(-8,4,-8); scene.add(red);
 
-            // Stronger directional light (warm key light)
-            const dirLight = new THREE.DirectionalLight(0xfff4d9, 1.3);
-            dirLight.position.set(12, 22, 8);
-            scene.add(dirLight);
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(42,42), new THREE.MeshPhongMaterial({color:0x2f2924}));
+            floor.rotation.x = -Math.PI/2; scene.add(floor);
+            const ceil = new THREE.Mesh(new THREE.PlaneGeometry(42,42), new THREE.MeshPhongMaterial({color:0x1a1816}));
+            ceil.rotation.x = -Math.PI/2; ceil.position.y=5.8; scene.add(ceil);
 
-            // Soft fill light (hemisphere)
-            const hemiLight = new THREE.HemisphereLight(0xaaaabb, 0x1a1a1a, 0.45);
-            scene.add(hemiLight);
+            // Walls & pillars (simplified for this update)
+            const wMat = new THREE.MeshPhongMaterial({color:0x3f362f});
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.2,5.5,42), wMat)).position.set(-20.6,2.75,0);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.2,5.5,42), wMat)).position.set(20.6,2.75,0);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(42,5.5,1.2), wMat)).position.set(0,2.75,-20.6);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(42,5.5,1.2), wMat)).position.set(0,2.75,20.6);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(3.2,4.2,3.2), new THREE.MeshPhongMaterial({color:0x463c34}))).position.set(0,2.1,0);
 
-            // Red accent point light (kept for atmosphere)
-            const redLight = new THREE.PointLight(0xff3311, 0.7, 28);
-            redLight.position.set(-8, 4, -8);
-            scene.add(redLight);
+            // Load goblin texture
+            new THREE.TextureLoader().load('asset/goblin-creature.jpg', tex => { goblinTexture = tex; console.log('%c[Goblin Texture] Loaded!', 'color:#4ade80'); });
 
-            // Floor - slightly brighter
-            const floorGeo = new THREE.PlaneGeometry(42, 42);
-            const floorMat = new THREE.MeshPhongMaterial({ 
-                color: 0x2f2924, 
-                shininess: 5
-            });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.y = FLOOR_Y;
-            scene.add(floor);
-
-            // Ceiling - slightly brighter
-            const ceilMat = new THREE.MeshPhongMaterial({ color: 0x1a1816, shininess: 3 });
-            const ceil = new THREE.Mesh(floorGeo, ceilMat);
-            ceil.rotation.x = -Math.PI / 2;
-            ceil.position.y = 5.8;
-            scene.add(ceil);
-
-            // Perimeter walls - lighter tone for visibility
-            const wallMat = new THREE.MeshPhongMaterial({ color: 0x3f362f, shininess: 4 });
-            const wallHeight = 5.5;
-
-            // Left wall
-            let wall = new THREE.Mesh(new THREE.BoxGeometry(1.2, wallHeight, 42), wallMat);
-            wall.position.set(-20.6, wallHeight/2, 0);
-            scene.add(wall);
-            createWallAABB(-21.2, -20, -21, 21);
-
-            // Right wall
-            wall = new THREE.Mesh(new THREE.BoxGeometry(1.2, wallHeight, 42), wallMat);
-            wall.position.set(20.6, wallHeight/2, 0);
-            scene.add(wall);
-            createWallAABB(20, 21.2, -21, 21);
-
-            // Back wall
-            wall = new THREE.Mesh(new THREE.BoxGeometry(42, wallHeight, 1.2), wallMat);
-            wall.position.set(0, wallHeight/2, -20.6);
-            scene.add(wall);
-            createWallAABB(-21, 21, -21.2, -20);
-
-            // Front wall
-            wall = new THREE.Mesh(new THREE.BoxGeometry(42, wallHeight, 1.2), wallMat);
-            wall.position.set(0, wallHeight/2, 20.6);
-            scene.add(wall);
-            createWallAABB(-21, 21, 20, 21.2);
-
-            // Internal obstacles / pillars (slightly brighter)
-            const pillarMat = new THREE.MeshPhongMaterial({ color: 0x463c34, shininess: 6 });
-            
-            // Center pillar
-            wall = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.2, 3.2), pillarMat);
-            wall.position.set(0, 2.1, 0);
-            scene.add(wall);
-            createWallAABB(-1.6, 1.6, -1.6, 1.6);
-
-            // Side crate 1
-            wall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.8, 2.4), pillarMat);
-            wall.position.set(-9, 1.4, -9);
-            scene.add(wall);
-            createWallAABB(-10.2, -7.8, -10.2, -7.8);
-
-            // Side crate 2
-            wall = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2.2, 2.8), pillarMat);
-            wall.position.set(9.5, 1.1, 8);
-            scene.add(wall);
-            createWallAABB(8.1, 10.9, 6.6, 9.4);
-
-            // Spawn initial enemies
-            for (let i = 0; i < 5; i++) {
-                spawnEnemy();
-            }
-
-            // Initial camera rotation
-            camera.rotation.y = yaw;
-            camera.rotation.x = pitch;
-
-            // Show initial message briefly
-            const msg = document.getElementById('message');
-            msg.classList.remove('hidden');
-            setTimeout(() => {
-                msg.style.transition = 'opacity 1.2s ease';
-                msg.style.opacity = '0';
-                setTimeout(() => msg.classList.add('hidden'), 1200);
-            }, 2800);
+            for(let i=0; i<5; i++) spawnEnemy();
+            camera.rotation.y = yaw; camera.rotation.x = pitch;
         }
 
         function updateMovement(dt) {
-            const moveDist = PLAYER_SPEED * dt;
-            const yAxis = new THREE.Vector3(0, 1, 0);
-
-            if (moveForward) {
-                const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(yAxis, yaw);
-                const newX = camera.position.x + dir.x * moveDist;
-                const newZ = camera.position.z + dir.z * moveDist;
-                if (!checkPlayerCollision(newX, camera.position.z)) camera.position.x = newX;
-                if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
-            }
-
-            if (moveBackward) {
-                const dir = new THREE.Vector3(0, 0, 1).applyAxisAngle(yAxis, yaw);
-                const newX = camera.position.x + dir.x * moveDist;
-                const newZ = camera.position.z + dir.z * moveDist;
-                if (!checkPlayerCollision(newX, camera.position.z)) camera.position.x = newX;
-                if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
-            }
-
-            if (moveLeft) {
-                const dir = new THREE.Vector3(-1, 0, 0).applyAxisAngle(yAxis, yaw);
-                const newX = camera.position.x + dir.x * moveDist;
-                const newZ = camera.position.z + dir.z * moveDist;
-                if (!checkPlayerCollision(newX, camera.position.z)) camera.position.x = newX;
-                if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
-            }
-
-            if (moveRight) {
-                const dir = new THREE.Vector3(1, 0, 0).applyAxisAngle(yAxis, yaw);
-                const newX = camera.position.x + dir.x * moveDist;
-                const newZ = camera.position.z + dir.z * moveDist;
-                if (!checkPlayerCollision(newX, camera.position.z)) camera.position.x = newX;
-                if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
-            }
-
-            camera.position.y = 1.65;
-            camera.position.x = Math.max(-19, Math.min(19, camera.position.x));
-            camera.position.z = Math.max(-19, Math.min(19, camera.position.z));
+            const d = PLAYER_SPEED * dt; const yAxis = new THREE.Vector3(0,1,0);
+            if(moveForward){ const dir=new THREE.Vector3(0,0,-1).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
+            if(moveBackward){ const dir=new THREE.Vector3(0,0,1).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
+            if(moveLeft){ const dir=new THREE.Vector3(-1,0,0).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
+            if(moveRight){ const dir=new THREE.Vector3(1,0,0).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
+            camera.position.y=1.65; camera.position.x=Math.max(-19,Math.min(19,camera.position.x)); camera.position.z=Math.max(-19,Math.min(19,camera.position.z));
         }
 
         function animate() {
             requestAnimationFrame(animate);
             const dt = Math.min(clock.getDelta(), 0.08);
+            updateMovement(dt); updateProjectiles(dt); updateParticles(dt); checkProjectileEnemyCollisions();
 
-            updateMovement(dt);
-            updateProjectiles(dt);
-            updateParticles(dt);
-            checkProjectileEnemyCollisions();
+            // Make goblin enemies face the player (billboarding)
+            enemies.forEach(e => { if(e.mesh.userData.isGoblin){ const p = e.mesh.position; e.mesh.lookAt(camera.position.x, p.y, camera.position.z); } });
 
-            camera.rotation.y = yaw;
-            camera.rotation.x = pitch;
-
+            camera.rotation.y = yaw; camera.rotation.x = pitch;
             renderer.render(scene, camera);
         }
 
         function setupControls() {
-            const btnForward = document.getElementById('btn-forward');
-            const btnBackward = document.getElementById('btn-backward');
-            const btnLeft = document.getElementById('btn-left');
-            const btnRight = document.getElementById('btn-right');
-            const btnShoot = document.getElementById('btn-shoot');
-            const canvas = renderer.domElement;
+            const btnF = document.getElementById('btn-forward'), btnB = document.getElementById('btn-backward'), btnL = document.getElementById('btn-left'), btnR = document.getElementById('btn-right'), btnS = document.getElementById('btn-shoot');
+            const c = renderer.domElement;
 
-            function bindButton(btn, flagSetter) {
-                btn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    flagSetter(true);
-                }, { passive: false });
-                
-                const endHandler = (e) => {
-                    e.preventDefault();
-                    flagSetter(false);
-                };
-                btn.addEventListener('touchend', endHandler, { passive: false });
-                btn.addEventListener('touchcancel', endHandler, { passive: false });
-                btn.addEventListener('mouseleave', () => flagSetter(false));
-            }
+            const bind = (btn, set) => { btn.addEventListener('touchstart', e=>{e.preventDefault();set(true)},{passive:false}); const end=e=>{e.preventDefault();set(false)}; btn.addEventListener('touchend',end,{passive:false}); btn.addEventListener('touchcancel',end,{passive:false}); };
+            bind(btnF, v=>moveForward=v); bind(btnB, v=>moveBackward=v); bind(btnL, v=>moveLeft=v); bind(btnR, v=>moveRight=v);
 
-            bindButton(btnForward, (val) => moveForward = val);
-            bindButton(btnBackward, (val) => moveBackward = val);
-            bindButton(btnLeft, (val) => moveLeft = val);
-            bindButton(btnRight, (val) => moveRight = val);
+            let si=null; btnS.addEventListener('touchstart',e=>{e.preventDefault();fireProjectile(); if(si)clearInterval(si); si=setInterval(fireProjectile,160)},{passive:false});
+            const stop=()=>{if(si){clearInterval(si);si=null}}; btnS.addEventListener('touchend',stop,{passive:false}); btnS.addEventListener('touchcancel',stop,{passive:false});
 
-            let shootInterval = null;
-            btnShoot.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                fireProjectile();
-                if (shootInterval) clearInterval(shootInterval);
-                shootInterval = setInterval(() => {
-                    fireProjectile();
-                }, 160);
-            }, { passive: false });
+            c.addEventListener('touchstart',e=>{if(e.target.closest('#controls')||e.target.id==='btn-shoot')return; isLooking=true; lastTouchX=e.touches[0].clientX; lastTouchY=e.touches[0].clientY;e.preventDefault()}, {passive:false});
+            c.addEventListener('touchmove',e=>{if(!isLooking)return; const t=e.touches[0]; yaw+= (t.clientX-lastTouchX)*LOOK_SENS; pitch-=(t.clientY-lastTouchY)*LOOK_SENS; pitch=Math.max(-1.35,Math.min(1,pitch)); lastTouchX=t.clientX; lastTouchY=t.clientY; e.preventDefault()}, {passive:false});
+            c.addEventListener('touchend',()=>isLooking=false);
 
-            const stopShooting = () => {
-                if (shootInterval) {
-                    clearInterval(shootInterval);
-                    shootInterval = null;
-                }
-            };
-            btnShoot.addEventListener('touchend', stopShooting, { passive: false });
-            btnShoot.addEventListener('touchcancel', stopShooting, { passive: false });
-
-            canvas.addEventListener('touchstart', (e) => {
-                if (e.target.closest('#controls') || e.target.id === 'btn-shoot') {
-                    return;
-                }
-                isLooking = true;
-                lastTouchX = e.touches[0].clientX;
-                lastTouchY = e.touches[0].clientY;
-                e.preventDefault();
-            }, { passive: false });
-
-            canvas.addEventListener('touchmove', (e) => {
-                if (!isLooking) return;
-                const touch = e.touches[0];
-                const dx = touch.clientX - lastTouchX;
-                const dy = touch.clientY - lastTouchY;
-
-                yaw += dx * LOOK_SENS;
-                pitch -= dy * LOOK_SENS;
-
-                pitch = Math.max(-1.35, Math.min(1.0, pitch));
-
-                lastTouchX = touch.clientX;
-                lastTouchY = touch.clientY;
-                e.preventDefault();
-            }, { passive: false });
-
-            canvas.addEventListener('touchend', () => { isLooking = false; });
-            canvas.addEventListener('touchcancel', () => { isLooking = false; });
-
-            // Desktop mouse support
-            let mouseDown = false;
-            canvas.addEventListener('mousedown', (e) => {
-                if (e.target.closest('#controls') || e.target.id === 'btn-shoot') return;
-                mouseDown = true;
-                lastTouchX = e.clientX;
-                lastTouchY = e.clientY;
-            });
-            window.addEventListener('mousemove', (e) => {
-                if (!mouseDown) return;
-                const dx = e.clientX - lastTouchX;
-                const dy = e.clientY - lastTouchY;
-                yaw += dx * LOOK_SENS * 0.8;
-                pitch -= dy * LOOK_SENS * 0.8;
-                pitch = Math.max(-1.35, Math.min(1.0, pitch));
-                lastTouchX = e.clientX;
-                lastTouchY = e.clientY;
-            });
-            window.addEventListener('mouseup', () => { mouseDown = false; });
-
-            window.addEventListener('keydown', (e) => {
-                if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') moveForward = true;
-                if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') moveBackward = true;
-                if (e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') moveLeft = true;
-                if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') moveRight = true;
-                if (e.key === ' ' || e.key.toLowerCase() === 'f') {
-                    e.preventDefault();
-                    fireProjectile();
-                }
-            });
-            window.addEventListener('keyup', (e) => {
-                if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') moveForward = false;
-                if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') moveBackward = false;
-                if (e.key.toLowerCase() === 'a' || e.key === 'ArrowLeft') moveLeft = false;
-                if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') moveRight = false;
-            });
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-
-            canvas.addEventListener('contextmenu', e => e.preventDefault());
+            window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight)});
+            c.addEventListener('contextmenu',e=>e.preventDefault());
         }
 
         function startGame() {
-            initTailwind();
-            setupScene();
-            clock = new THREE.Clock();
-            setupControls();
-            updateScore();
-            updateTargetsLeft();
-
-            animate();
-
-            document.getElementById('score').addEventListener('click', () => {
-                score += 500;
-                updateScore();
-            });
-
-            console.log('%c[Doom FPS] Mobile 3D game ready. Enjoy!', 'color:#c53030');
+            initTailwind(); setupScene(); clock=new THREE.Clock(); setupControls(); updateScore(); updateTargetsLeft(); animate();
+            console.log('%c[Doom FPS] Game updated with goblin enemies!', 'color:#c53030');
         }
-
         window.onload = startGame;
     </script>
 </body>
