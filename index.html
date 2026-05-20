@@ -418,7 +418,7 @@
 
         function setupScene() {
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x0a0a0a, 8, 38);
+            scene.fog = new THREE.Fog(0x111111, 7, 45);
 
             camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.1, 100);
             camera.position.set(0, 1.65, 6);
@@ -430,41 +430,48 @@
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = false; // disabled for mobile perf
+            renderer.shadowMap.enabled = false;
             document.getElementById('game-container').appendChild(renderer.domElement);
 
-            // Lights - moody atmosphere
-            const ambient = new THREE.AmbientLight(0x3a3a3a, 0.55);
+            // === IMPROVED LIGHTING ===
+            // Brighter ambient for visibility
+            const ambient = new THREE.AmbientLight(0x5a5a5a, 0.82);
             scene.add(ambient);
 
-            const dirLight = new THREE.DirectionalLight(0xfff0dd, 0.85);
+            // Stronger directional light (warm key light)
+            const dirLight = new THREE.DirectionalLight(0xfff4d9, 1.3);
             dirLight.position.set(12, 22, 8);
             scene.add(dirLight);
 
-            const redLight = new THREE.PointLight(0xff3311, 0.6, 25);
+            // Soft fill light (hemisphere)
+            const hemiLight = new THREE.HemisphereLight(0xaaaabb, 0x1a1a1a, 0.45);
+            scene.add(hemiLight);
+
+            // Red accent point light (kept for atmosphere)
+            const redLight = new THREE.PointLight(0xff3311, 0.7, 28);
             redLight.position.set(-8, 4, -8);
             scene.add(redLight);
 
-            // Floor
+            // Floor - slightly brighter
             const floorGeo = new THREE.PlaneGeometry(42, 42);
             const floorMat = new THREE.MeshPhongMaterial({ 
-                color: 0x1f1a17, 
-                shininess: 4,
-                flatShading: false
+                color: 0x2f2924, 
+                shininess: 5
             });
             const floor = new THREE.Mesh(floorGeo, floorMat);
             floor.rotation.x = -Math.PI / 2;
             floor.position.y = FLOOR_Y;
             scene.add(floor);
 
-            // Ceiling
-            const ceil = new THREE.Mesh(floorGeo, new THREE.MeshPhongMaterial({ color: 0x111111, shininess: 2 }));
+            // Ceiling - slightly brighter
+            const ceilMat = new THREE.MeshPhongMaterial({ color: 0x1a1816, shininess: 3 });
+            const ceil = new THREE.Mesh(floorGeo, ceilMat);
             ceil.rotation.x = -Math.PI / 2;
             ceil.position.y = 5.8;
             scene.add(ceil);
 
-            // Perimeter walls
-            const wallMat = new THREE.MeshPhongMaterial({ color: 0x2c2520, shininess: 3 });
+            // Perimeter walls - lighter tone for visibility
+            const wallMat = new THREE.MeshPhongMaterial({ color: 0x3f362f, shininess: 4 });
             const wallHeight = 5.5;
 
             // Left wall
@@ -479,7 +486,7 @@
             scene.add(wall);
             createWallAABB(20, 21.2, -21, 21);
 
-            // Back wall (negative Z)
+            // Back wall
             wall = new THREE.Mesh(new THREE.BoxGeometry(42, wallHeight, 1.2), wallMat);
             wall.position.set(0, wallHeight/2, -20.6);
             scene.add(wall);
@@ -491,8 +498,8 @@
             scene.add(wall);
             createWallAABB(-21, 21, 20, 21.2);
 
-            // Internal obstacles / pillars
-            const pillarMat = new THREE.MeshPhongMaterial({ color: 0x3a2f28, shininess: 5 });
+            // Internal obstacles / pillars (slightly brighter)
+            const pillarMat = new THREE.MeshPhongMaterial({ color: 0x463c34, shininess: 6 });
             
             // Center pillar
             wall = new THREE.Mesh(new THREE.BoxGeometry(3.2, 4.2, 3.2), pillarMat);
@@ -535,7 +542,6 @@
             const moveDist = PLAYER_SPEED * dt;
             const yAxis = new THREE.Vector3(0, 1, 0);
 
-            // Forward
             if (moveForward) {
                 const dir = new THREE.Vector3(0, 0, -1).applyAxisAngle(yAxis, yaw);
                 const newX = camera.position.x + dir.x * moveDist;
@@ -544,7 +550,6 @@
                 if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
             }
 
-            // Backward
             if (moveBackward) {
                 const dir = new THREE.Vector3(0, 0, 1).applyAxisAngle(yAxis, yaw);
                 const newX = camera.position.x + dir.x * moveDist;
@@ -553,7 +558,6 @@
                 if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
             }
 
-            // Strafe Left
             if (moveLeft) {
                 const dir = new THREE.Vector3(-1, 0, 0).applyAxisAngle(yAxis, yaw);
                 const newX = camera.position.x + dir.x * moveDist;
@@ -562,7 +566,6 @@
                 if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
             }
 
-            // Strafe Right
             if (moveRight) {
                 const dir = new THREE.Vector3(1, 0, 0).applyAxisAngle(yAxis, yaw);
                 const newX = camera.position.x + dir.x * moveDist;
@@ -571,7 +574,6 @@
                 if (!checkPlayerCollision(camera.position.x, newZ)) camera.position.z = newZ;
             }
 
-            // Keep player inside rough bounds + eye level
             camera.position.y = 1.65;
             camera.position.x = Math.max(-19, Math.min(19, camera.position.x));
             camera.position.z = Math.max(-19, Math.min(19, camera.position.z));
@@ -586,7 +588,6 @@
             updateParticles(dt);
             checkProjectileEnemyCollisions();
 
-            // Update camera rotation from yaw/pitch
             camera.rotation.y = yaw;
             camera.rotation.x = pitch;
 
@@ -601,7 +602,6 @@
             const btnShoot = document.getElementById('btn-shoot');
             const canvas = renderer.domElement;
 
-            // Movement button handlers
             function bindButton(btn, flagSetter) {
                 btn.addEventListener('touchstart', (e) => {
                     e.preventDefault();
@@ -622,12 +622,10 @@
             bindButton(btnLeft, (val) => moveLeft = val);
             bindButton(btnRight, (val) => moveRight = val);
 
-            // Shoot button - tap or hold
             let shootInterval = null;
             btnShoot.addEventListener('touchstart', (e) => {
                 e.preventDefault();
                 fireProjectile();
-                // Allow holding for rapid fire
                 if (shootInterval) clearInterval(shootInterval);
                 shootInterval = setInterval(() => {
                     fireProjectile();
@@ -643,9 +641,7 @@
             btnShoot.addEventListener('touchend', stopShooting, { passive: false });
             btnShoot.addEventListener('touchcancel', stopShooting, { passive: false });
 
-            // Touch look on canvas
             canvas.addEventListener('touchstart', (e) => {
-                // Ignore if touching a control button
                 if (e.target.closest('#controls') || e.target.id === 'btn-shoot') {
                     return;
                 }
@@ -664,7 +660,6 @@
                 yaw += dx * LOOK_SENS;
                 pitch -= dy * LOOK_SENS;
 
-                // Clamp pitch
                 pitch = Math.max(-1.35, Math.min(1.0, pitch));
 
                 lastTouchX = touch.clientX;
@@ -672,14 +667,10 @@
                 e.preventDefault();
             }, { passive: false });
 
-            canvas.addEventListener('touchend', () => {
-                isLooking = false;
-            });
-            canvas.addEventListener('touchcancel', () => {
-                isLooking = false;
-            });
+            canvas.addEventListener('touchend', () => { isLooking = false; });
+            canvas.addEventListener('touchcancel', () => { isLooking = false; });
 
-            // Desktop mouse support (bonus)
+            // Desktop mouse support
             let mouseDown = false;
             canvas.addEventListener('mousedown', (e) => {
                 if (e.target.closest('#controls') || e.target.id === 'btn-shoot') return;
@@ -699,7 +690,6 @@
             });
             window.addEventListener('mouseup', () => { mouseDown = false; });
 
-            // Keyboard support (nice for desktop testing)
             window.addEventListener('keydown', (e) => {
                 if (e.key.toLowerCase() === 'w' || e.key === 'ArrowUp') moveForward = true;
                 if (e.key.toLowerCase() === 's' || e.key === 'ArrowDown') moveBackward = true;
@@ -717,14 +707,12 @@
                 if (e.key.toLowerCase() === 'd' || e.key === 'ArrowRight') moveRight = false;
             });
 
-            // Handle resize
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
                 renderer.setSize(window.innerWidth, window.innerHeight);
             });
 
-            // Prevent context menu on long press
             canvas.addEventListener('contextmenu', e => e.preventDefault());
         }
 
@@ -736,10 +724,8 @@
             updateScore();
             updateTargetsLeft();
 
-            // Start animation loop
             animate();
 
-            // Easter egg: click score to add points (dev)
             document.getElementById('score').addEventListener('click', () => {
                 score += 500;
                 updateScore();
@@ -748,7 +734,6 @@
             console.log('%c[Doom FPS] Mobile 3D game ready. Enjoy!', 'color:#c53030');
         }
 
-        // Boot the game
         window.onload = startGame;
     </script>
 </body>
