@@ -17,7 +17,14 @@
         #crosshair::after { width:100%; height:2px; top:50%; transform:translateY(-50%); }
         .control-btn { pointer-events:auto; touch-action:manipulation; }
         .game-btn { background:rgba(0,0,0,0.65); border:3px solid #c53030; color:#fff; font-weight:700; }
-        .shoot-btn { background:linear-gradient(145deg,#c53030,#9b2c2c); border:4px solid #fed7d7; }
+        .shoot-btn { 
+            background:linear-gradient(145deg,#c53030,#9b2c2c); 
+            border:5px solid #fed7d7; 
+            box-shadow: 0 4px 15px rgba(197, 48, 48, 0.6);
+            min-width: 92px;
+            min-height: 68px;
+        }
+        .shoot-btn:active { transform: scale(0.92); }
     </style>
 </head>
 <body class="bg-black text-white">
@@ -45,7 +52,7 @@
                     <button id="btn-backward" class="control-btn game-btn h-14 w-14 text-2xl rounded-xl">↓</button>
                     <button id="btn-right" class="control-btn game-btn h-14 w-14 text-2xl rounded-xl">→</button>
                 </div>
-                <button id="btn-shoot" class="control-btn shoot-btn text-white font-black px-8 py-3 text-xl rounded-2xl">SHOOT</button>
+                <button id="btn-shoot" class="control-btn shoot-btn text-white font-black text-xl rounded-3xl px-6 py-2 shadow-xl">SHOOT</button>
             </div>
         </div>
         <div id="crosshair"></div>
@@ -81,24 +88,30 @@
         }
 
         function fireProjectile(){
-            if(Date.now()-lastShotTime < 120) return;
+            if(Date.now()-lastShotTime < 115) return;
             lastShotTime = Date.now();
             const dir = new THREE.Vector3();
             camera.getWorldDirection(dir);
-            const start = camera.position.clone().add(dir.clone().multiplyScalar(1.4));
+
+            // Better weapon positioning: spawn projectiles from a "gun" slightly lower than eye level
+            // This makes bullets feel like they come from a held weapon, not from the eyes
+            const gunPos = camera.position.clone();
+            gunPos.y -= 0.28; // lower the gun relative to camera height
+            const start = gunPos.clone().add(dir.clone().multiplyScalar(1.15));
+
             const p = new THREE.Mesh(new THREE.SphereGeometry(0.11,6,6), new THREE.MeshPhongMaterial({color:0xffcc33, emissive:0xff6600}));
             p.position.copy(start); scene.add(p);
             projectiles.push({mesh:p, vel: dir.clone().multiplyScalar(BULLET_SPEED), life:2.2});
 
-            // Muzzle flash effect
-            const flashPos = camera.position.clone().add(dir.clone().multiplyScalar(0.8));
-            const flash = new THREE.Mesh(new THREE.SphereGeometry(0.35,5,5), new THREE.MeshBasicMaterial({color:0xffee66, transparent:true, opacity:0.85}));
+            // Muzzle flash positioned at the gun barrel
+            const flashPos = gunPos.clone().add(dir.clone().multiplyScalar(0.45));
+            const flash = new THREE.Mesh(new THREE.SphereGeometry(0.38,5,5), new THREE.MeshBasicMaterial({color:0xffee66, transparent:true, opacity:0.9}));
             flash.position.copy(flashPos);
             scene.add(flash);
-            setTimeout(() => { if(flash.parent) flash.parent.remove(flash); }, 70);
+            setTimeout(() => { if(flash.parent) flash.parent.remove(flash); }, 65);
 
-            // Extra muzzle particles
-            createParticle(flashPos, new THREE.Vector3(0,1.5,0), 0.12, 0xffdd88);
+            // Extra muzzle particles from gun
+            createParticle(flashPos, new THREE.Vector3(0,2,0), 0.11, 0xffdd88);
         }
 
         function updateProjectiles(dt){
@@ -116,7 +129,6 @@
                     projectiles.splice(i,1); 
                     if(hit) {
                         createParticle(p.mesh.position.clone(), new THREE.Vector3(0,2.5,0), 0.6, 0x555555, true);
-                        // small extra sparks
                         for(let k=0; k<2; k++) createParticle(p.mesh.position.clone(), new THREE.Vector3((Math.random()-0.5)*4, 3, (Math.random()-0.5)*4), 0.4, 0x888866);
                     }
                 }
@@ -144,7 +156,6 @@
                     if(pr.mesh.position.distanceTo(enemies[j].mesh.position) < 1.55){
                         const hitPos = pr.mesh.position.clone();
                         createParticle(hitPos, new THREE.Vector3(0,5,0), 1.0, 0xff2211, true);
-                        // Extra death particles for goblin feel
                         for(let k=0; k<6; k++){
                             const vel = new THREE.Vector3((Math.random()-0.5)*7, 2+Math.random()*5, (Math.random()-0.5)*7);
                             createParticle(hitPos, vel, 0.9 + Math.random()*0.6, 0xaa1122, true);
@@ -241,7 +252,7 @@
             scene.fog = new THREE.Fog(0x0a0a0a, 7, 38);
 
             camera = new THREE.PerspectiveCamera(68, window.innerWidth/window.innerHeight, 0.1, 100);
-            camera.position.set(0, 1.65, 6.5);
+            camera.position.set(0, 1.75, 6.5);   // Slightly higher eye level for better feel
             camera.rotation.order = 'YXZ';
 
             renderer = new THREE.WebGLRenderer({antialias:true, alpha:false});
@@ -278,17 +289,14 @@
 
             // Central pillar + extra cover pillars
             scene.add(new THREE.Mesh(new THREE.BoxGeometry(3.2,4.5,3.2), new THREE.MeshPhongMaterial({color:0x3a3228}))).position.set(0,2.2,0);
-            // Extra pillars for better gameplay
             scene.add(new THREE.Mesh(new THREE.BoxGeometry(2.2,3.8,2.2), new THREE.MeshPhongMaterial({color:0x2f2922}))).position.set(-9,1.9,-8);
             scene.add(new THREE.Mesh(new THREE.BoxGeometry(2.2,3.8,2.2), new THREE.MeshPhongMaterial({color:0x2f2922}))).position.set(10,1.9,9);
             scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.8,4,1.8), new THREE.MeshPhongMaterial({color:0x362f26}))).position.set(-7,2,6);
 
-            // Create goblin texture (procedural - always works, no external image needed)
             goblinTexture = createGoblinTexture();
             console.log('%c[Goblins] Procedural goblin texture created successfully!', 'color:#4ade80');
             for(let i=0; i<6; i++) spawnEnemy();
 
-            // Initial camera alignment
             camera.rotation.y = yaw;
             camera.rotation.x = pitch;
         }
@@ -325,7 +333,7 @@
                 if(!checkPlayerCollision(camera.position.x, nz)) camera.position.z = nz; 
             }
 
-            camera.position.y = 1.65; // Keep player height
+            camera.position.y = 1.75; // Keep player eye height (higher for better perspective)
         }
 
         function animate(){
@@ -337,14 +345,11 @@
             updateParticles(dt);
             checkHits();
 
-            // Billboard goblins + gentle bob animation (keeps image upright and lively)
             const now = performance.now();
             enemies.forEach(e => {
                 if(e.mesh && e.mesh.userData.isGoblin){
                     if(e.baseY === undefined) e.baseY = e.mesh.position.y;
-                    // Gentle bob
                     e.mesh.position.y = e.baseY + Math.sin(now * 0.0018 + e.mesh.position.x * 0.6) * 0.11;
-                    // Strict Y-billboard (no tilt) so goblin image shows correctly upright
                     const dx = camera.position.x - e.mesh.position.x;
                     const dz = camera.position.z - e.mesh.position.z;
                     e.mesh.rotation.y = Math.atan2(dx, dz);
@@ -361,7 +366,6 @@
         function setupControls(){
             const c = renderer.domElement;
 
-            // Touch button controls
             const bind = (id, flag) => {
                 const b = document.getElementById(id);
                 b.addEventListener('touchstart', e=>{e.preventDefault(); flag(true)}, {passive:false});
@@ -376,27 +380,34 @@
 
             const shootBtn = document.getElementById('btn-shoot');
             let si = null;
-            shootBtn.addEventListener('touchstart', e=>{ e.preventDefault(); fireProjectile(); if(si)clearInterval(si); si=setInterval(fireProjectile,140); }, {passive:false});
-            const stopShoot = () => {if(si){clearInterval(si);si=null}};
-            shootBtn.addEventListener('touchend', stopShoot, {passive:false});
+            const startShooting = (e) => { 
+                e.preventDefault(); 
+                fireProjectile(); 
+                if(si) clearInterval(si); 
+                si = setInterval(fireProjectile, 135); 
+            };
+            const stopShooting = () => { if(si){ clearInterval(si); si=null; } };
 
-            // Touch look - FIXED: drag UP to look UP (correct intuitive alignment)
+            shootBtn.addEventListener('touchstart', startShooting, {passive:false});
+            shootBtn.addEventListener('touchend', stopShooting, {passive:false});
+            shootBtn.addEventListener('touchcancel', stopShooting, {passive:false});
+
+            // Touch look - improved exclusion for shoot button
             c.addEventListener('touchstart', e => { 
-                if(e.target.closest('#controls') || e.target.id==='btn-shoot') return; 
+                if(e.target.closest('#controls') || e.target.closest('#btn-shoot')) return; 
                 isLooking=true; lastTouchX=e.touches[0].clientX; lastTouchY=e.touches[0].clientY; 
             }, {passive:false});
             c.addEventListener('touchmove', e => { 
                 if(!isLooking) return; 
                 const t=e.touches[0]; 
                 yaw += (t.clientX-lastTouchX)*0.0032;
-                pitch += (t.clientY-lastTouchY)*0.0035;  // + sign = drag up looks up
+                pitch += (t.clientY-lastTouchY)*0.0035;
                 pitch=Math.max(-1.45,Math.min(1.05,pitch));
                 lastTouchX=t.clientX; lastTouchY=t.clientY; 
             }, {passive:false});
             c.addEventListener('touchend', ()=> isLooking=false);
 
-            // Keyboard support for desktop testing (WASD + Space to shoot)
-            const keys = {};
+            // Keyboard support (WASD + Space/F)
             document.addEventListener('keydown', e => {
                 const k = e.key.toLowerCase();
                 if(k==='w' || k==='arrowup') moveForward = true;
@@ -427,7 +438,6 @@
             updateScore();
             updateTargetsLeft();
 
-            // Brief intro message
             const msgEl = document.getElementById('message');
             msgEl.classList.remove('hidden');
             setTimeout(() => {
@@ -441,7 +451,7 @@
             }, 2800);
 
             animate();
-            console.log('%c[Doom FPS] Camera aligned + goblin sprites fixed + improved!', 'color:#22c55e');
+            console.log('%c[Doom FPS] Camera height raised + weapon projectiles aligned + shooting button improved!', 'color:#22c55e');
         }
         window.onload = startGame;
     </script>
