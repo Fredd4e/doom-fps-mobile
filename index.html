@@ -7,331 +7,276 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&amp;display=swap');
-        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: system-ui, -apple-system, sans-serif; }
-        #game-container { position: relative; width: 100vw; height: 100vh; }
-        #ui-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
-        .hud { pointer-events: auto; }
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 24px; height: 24px; pointer-events: none; }
-        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #ff3333; }
-        #crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
-        #crosshair::after { width: 100%; height: 2px; top: 50%; transform: translateY(-50%); }
-        .control-btn { 
-            pointer-events: auto; 
-            user-select: none; 
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            transition: all 0.05s ease;
-        }
-        .control-btn:active { 
-            transform: scale(0.92); 
-            filter: brightness(1.3);
-        }
-        .doom-text { font-family: 'Press Start 2P', system-ui; }
-        .game-btn {
-            background: rgba(0,0,0,0.65);
-            border: 3px solid #c53030;
-            color: #fff;
-            font-weight: 700;
-            text-shadow: 0 0 8px rgba(197,48,48,0.6);
-        }
-        .shoot-btn {
-            background: linear-gradient(145deg, #c53030, #9b2c2c);
-            border: 4px solid #fed7d7;
-            box-shadow: 0 0 20px rgba(197, 48, 48, 0.5);
-        }
+        body { margin:0; overflow:hidden; background:#0a0a0a; }
+        #game-container { position:relative; width:100vw; height:100vh; }
+        #ui-overlay { position:absolute; inset:0; pointer-events:none; z-index:10; }
+        .hud { pointer-events:auto; }
+        #crosshair { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:24px; height:24px; pointer-events:none; }
+        #crosshair::before, #crosshair::after { content:''; position:absolute; background:#ff3333; }
+        #crosshair::before { width:2px; height:100%; left:50%; transform:translateX(-50%); }
+        #crosshair::after { width:100%; height:2px; top:50%; transform:translateY(-50%); }
+        .control-btn { pointer-events:auto; touch-action:manipulation; }
+        .game-btn { background:rgba(0,0,0,0.65); border:3px solid #c53030; color:#fff; font-weight:700; }
+        .shoot-btn { background:linear-gradient(145deg,#c53030,#9b2c2c); border:4px solid #fed7d7; }
     </style>
 </head>
 <body class="bg-black text-white">
     <div id="game-container">
-        <!-- Three.js will append canvas here -->
-        
-        <!-- HUD -->
         <div id="ui-overlay" class="flex flex-col justify-between p-4">
-            <!-- Top HUD -->
             <div class="flex justify-between items-start hud">
                 <div class="bg-black/70 px-4 py-2 rounded border border-red-800">
-                    <div class="text-red-500 text-xs tracking-[3px] doom-text">SCORE</div>
-                    <div id="score" class="text-4xl font-bold text-white doom-text">00000</div>
+                    <div class="text-red-500 text-xs tracking-[3px]">SCORE</div>
+                    <div id="score" class="text-4xl font-bold">00000</div>
                 </div>
-                
                 <div class="bg-black/70 px-3 py-1.5 rounded border border-red-800 text-right">
-                    <div class="text-red-500 text-[10px] tracking-widest doom-text">TARGETS LEFT</div>
-                    <div id="targets-left" class="text-2xl font-bold text-red-400 doom-text">5</div>
+                    <div class="text-red-500 text-[10px] tracking-widest">TARGETS LEFT</div>
+                    <div id="targets-left" class="text-2xl font-bold text-red-400">5</div>
                 </div>
             </div>
-
-            <!-- Center message -->
-            <div id="message" class="self-center bg-black/60 px-6 py-2 rounded text-center text-sm border border-red-900/50 max-w-[260px] hidden">
-                <span class="doom-text text-red-400">DESTROY THE RED TARGETS</span>
+            <div id="message" class="self-center bg-black/60 px-6 py-2 rounded text-center text-sm border border-red-900/50 hidden">
+                <span class="text-red-400">DESTROY THE GOBLINS</span>
             </div>
-
-            <!-- Bottom Controls -->
             <div class="flex justify-between items-end pb-2 hud">
-                <!-- Movement D-Pad -->
                 <div id="controls" class="grid grid-cols-3 gap-1.5 w-[170px]">
-                    <!-- Empty top left -->
                     <div></div>
-                    
-                    <!-- Forward -->
-                    <button id="btn-forward"
-                            class="control-btn game-btn col-start-2 h-14 w-14 flex items-center justify-center text-2xl rounded-xl active:scale-95">
-                        ↑
-                    </button>
-                    
+                    <button id="btn-forward" class="control-btn game-btn col-start-2 h-14 w-14 text-2xl rounded-xl">↑</button>
                     <div></div>
-                    
-                    <!-- Left -->
-                    <button id="btn-left"
-                            class="control-btn game-btn h-14 w-14 flex items-center justify-center text-2xl rounded-xl active:scale-95">
-                        ←
-                    </button>
-                    
-                    <!-- Backward -->
-                    <button id="btn-backward"
-                            class="control-btn game-btn h-14 w-14 flex items-center justify-center text-2xl rounded-xl active:scale-95">
-                        ↓
-                    </button>
-                    
-                    <!-- Right -->
-                    <button id="btn-right"
-                            class="control-btn game-btn h-14 w-14 flex items-center justify-center text-2xl rounded-xl active:scale-95">
-                        →
-                    </button>
+                    <button id="btn-left" class="control-btn game-btn h-14 w-14 text-2xl rounded-xl">←</button>
+                    <button id="btn-backward" class="control-btn game-btn h-14 w-14 text-2xl rounded-xl">↓</button>
+                    <button id="btn-right" class="control-btn game-btn h-14 w-14 text-2xl rounded-xl">→</button>
                 </div>
-
-                <!-- Shoot Button -->
-                <div class="flex flex-col items-end">
-                    <button id="btn-shoot"
-                            class="control-btn shoot-btn text-white font-black tracking-[2px] doom-text px-8 py-3 text-xl rounded-2xl shadow-2xl active:scale-[0.96] flex items-center gap-2">
-                        <span>SHOOT</span>
-                        <span class="text-3xl">🔫</span>
-                    </button>
-                    <div class="text-[10px] text-red-400/70 mt-1 pr-1 doom-text tracking-widest">HOLD TO FIRE</div>
-                </div>
+                <button id="btn-shoot" class="control-btn shoot-btn text-white font-black px-8 py-3 text-xl rounded-2xl">SHOOT</button>
             </div>
         </div>
-
-        <!-- Crosshair -->
         <div id="crosshair"></div>
     </div>
 
     <script>
-        function initTailwind() { document.documentElement.style.setProperty('--accent', '#c53030'); }
-
         let scene, camera, renderer, clock;
-        let yaw = 0, pitch = -0.15;
-        let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
-        let lastShotTime = 0, score = 0;
-        let projectiles = [], particles = [], enemies = [], wallAABBs = [];
+        let yaw = 0, pitch = -0.1;
+        let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false;
+        let lastShotTime=0, score=0;
+        let projectiles=[], particles=[], enemies=[], wallAABBs=[];
         let goblinTexture = null;
-        const GRAVITY = 22, PLAYER_SPEED = 11, BULLET_SPEED = 48, PLAYER_RADIUS = 0.55, FLOOR_Y = 0;
-        let isLooking = false, lastTouchX = 0, lastTouchY = 0;
-        const LOOK_SENS = 0.0032;
+        const GRAVITY=22, PLAYER_SPEED=11, BULLET_SPEED=48, PLAYER_RADIUS=0.5;
 
-        function updateScore() { document.getElementById('score').textContent = score.toString().padStart(5, '0'); }
+        function updateScore() { document.getElementById('score').textContent = score.toString().padStart(5,'0'); }
         function updateTargetsLeft() { document.getElementById('targets-left').textContent = enemies.length; }
 
-        function createWallAABB(minX, maxX, minZ, maxZ) { wallAABBs.push({ minX, maxX, minZ, maxZ }); }
+        function createWallAABB(minX,maxX,minZ,maxZ){ wallAABBs.push({minX,maxX,minZ,maxZ}); }
 
-        function checkPlayerCollision(x, z) {
+        function checkPlayerCollision(x,z){
             const r = PLAYER_RADIUS;
-            for (const wall of wallAABBs) {
-                if (x + r > wall.minX && x - r < wall.maxX && z + r > wall.minZ && z - r < wall.maxZ) return true;
+            for(const w of wallAABBs){
+                if(x+r > w.minX && x-r < w.maxX && z+r > w.minZ && z-r < w.maxZ) return true;
             }
             return false;
         }
 
-        function createParticle(pos, velocity, life, color, isDebris = false) {
-            const size = isDebris ? (0.12 + Math.random()*0.18) : (0.06 + Math.random()*0.08);
-            const mesh = new THREE.Mesh(new THREE.SphereGeometry(size,5,5), new THREE.MeshPhongMaterial({color, emissive: isDebris?0x111111:color, transparent:true, opacity:0.95}));
-            mesh.position.copy(pos);
-            scene.add(mesh);
-            particles.push({mesh, vel: velocity, life, maxLife: life, isDebris});
+        function createParticle(pos, vel, life, color, isDebris=false){
+            const m = new THREE.Mesh(new THREE.SphereGeometry(isDebris?0.15:0.08,5,5), new THREE.MeshPhongMaterial({color, emissive:color, transparent:true}));
+            m.position.copy(pos); scene.add(m);
+            particles.push({mesh:m, vel, life, maxLife:life, isDebris});
         }
 
-        function createMuzzleFlash(pos, direction) {
-            for (let i=0; i<9; i++) {
-                const vel = direction.clone().multiplyScalar(7 + Math.random()*6);
-                vel.x += (Math.random()-0.5)*2.2; vel.y += (Math.random()-0.5)*1.8; vel.z += (Math.random()-0.5)*2.2;
-                createParticle(pos, vel, 0.18 + Math.random()*0.12, 0xffee88, false);
-            }
-        }
-
-        function createImpactParticles(pos, isFloor=false) {
-            const count = isFloor ? 12 : 18;
-            const colors = isFloor ? [0x555555,0x777744,0x664422] : [0xff4422,0xaa2211,0xffaa33,0x442211];
-            for (let i=0; i<count; i++) {
-                const vel = new THREE.Vector3((Math.random()-0.5)*(isFloor?6:11), isFloor?(1.5+Math.random()*4):(3+Math.random()*9), (Math.random()-0.5)*(isFloor?6:11));
-                if(!isFloor) vel.y = Math.max(vel.y,1);
-                createParticle(pos, vel, isFloor ? (0.6+Math.random()*0.7) : (0.9+Math.random()*1.1), colors[Math.floor(Math.random()*colors.length)], true);
-            }
-        }
-
-        function createExplosion(pos) {
-            for (let i=0; i<26; i++) {
-                const vel = new THREE.Vector3((Math.random()-0.5)*13, (Math.random()*11)+2, (Math.random()-0.5)*13);
-                createParticle(pos, vel, 1.1 + Math.random()*1.3, [0xff3311,0xcc2200,0xffaa22,0x552200][Math.floor(Math.random()*4)], true);
-            }
-        }
-
-        function fireProjectile() {
-            if (Date.now() - lastShotTime < 140) return;
+        function fireProjectile(){
+            if(Date.now()-lastShotTime < 130) return;
             lastShotTime = Date.now();
             const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
-            const startPos = camera.position.clone().add(dir.clone().multiplyScalar(1.4)); startPos.y += 0.05;
-            const projMesh = new THREE.Mesh(new THREE.SphereGeometry(0.13,7,7), new THREE.MeshPhongMaterial({color:0xffcc33, emissive:0xff6600}));
-            projMesh.position.copy(startPos); scene.add(projMesh);
-            const vel = dir.clone().multiplyScalar(BULLET_SPEED); vel.y -= 1.5;
-            projectiles.push({mesh:projMesh, vel, life:2.8});
-            createMuzzleFlash(startPos, dir);
+            const start = camera.position.clone().add(dir.clone().multiplyScalar(1.3));
+            const p = new THREE.Mesh(new THREE.SphereGeometry(0.12,6,6), new THREE.MeshPhongMaterial({color:0xffcc33, emissive:0xff6600}));
+            p.position.copy(start); scene.add(p);
+            projectiles.push({mesh:p, vel: dir.clone().multiplyScalar(BULLET_SPEED), life:2.5});
         }
 
-        function updateProjectiles(dt) {
-            for (let i=projectiles.length-1; i>=0; i--) {
+        function updateProjectiles(dt){
+            for(let i=projectiles.length-1; i>=0; i--){
                 const p = projectiles[i];
-                p.vel.y -= GRAVITY*0.6*dt;
-                p.mesh.position.x += p.vel.x*dt; p.mesh.position.y += p.vel.y*dt; p.mesh.position.z += p.vel.z*dt;
+                p.vel.y -= GRAVITY*0.5*dt;
+                p.mesh.position.addScaledVector(p.vel, dt);
                 p.life -= dt;
-                let hit = p.mesh.position.y < 0.25;
-                for (const w of wallAABBs) { if (p.mesh.position.x>w.minX && p.mesh.position.x<w.maxX && p.mesh.position.z>w.minZ && p.mesh.position.z<w.maxZ) {hit=true; break;} }
-                if (Math.abs(p.mesh.position.x)>23 || Math.abs(p.mesh.position.z)>23) hit=true;
-                if (hit || p.life<=0) { scene.remove(p.mesh); projectiles.splice(i,1); if(hit) createImpactParticles(p.mesh.position.clone(), p.mesh.position.y<0.3); }
+                let hit = p.mesh.position.y < 0.2;
+                for(const w of wallAABBs){ if(p.mesh.position.x>w.minX&&p.mesh.position.x<w.maxX && p.mesh.position.z>w.minZ&&p.mesh.position.z<w.maxZ){hit=true;break;} }
+                if(hit || p.life<=0){ scene.remove(p.mesh); projectiles.splice(i,1); if(hit) createParticle(p.mesh.position.clone(), new THREE.Vector3(0,3,0), 0.8, 0x666666, true); }
             }
         }
 
-        function updateParticles(dt) {
-            for (let i=particles.length-1; i>=0; i--) {
-                const p = particles[i];
-                p.vel.y -= GRAVITY * dt;
-                p.mesh.position.x += p.vel.x*dt; p.mesh.position.y += p.vel.y*dt; p.mesh.position.z += p.vel.z*dt;
-                p.life -= dt;
-                if (p.mesh.material) p.mesh.material.opacity = Math.max(0.05, p.life / p.maxLife);
-                if (p.isDebris && p.mesh.position.y < 0.15 && p.vel.y < 0) {
-                    p.mesh.position.y = 0.15; p.vel.y *= -0.45; p.vel.x*=0.65; p.vel.z*=0.65;
-                    if (Math.abs(p.vel.y)<2.5) p.life = Math.min(p.life, 0.4);
-                }
-                if (p.life <= 0) { scene.remove(p.mesh); particles.splice(i,1); }
+        function updateParticles(dt){
+            for(let i=particles.length-1;i>=0;i--){
+                const p=particles[i];
+                p.vel.y -= GRAVITY*dt; p.mesh.position.addScaledVector(p.vel,dt); p.life-=dt;
+                if(p.mesh.material) p.mesh.material.opacity = Math.max(0.1, p.life/p.maxLife);
+                if(p.isDebris && p.mesh.position.y<0.1 && p.vel.y<0){ p.mesh.position.y=0.1; p.vel.y*=-0.4; p.vel.x*=0.6; p.vel.z*=0.6; }
+                if(p.life<=0){scene.remove(p.mesh); particles.splice(i,1);}
             }
         }
 
-        function checkProjectileEnemyCollisions() {
-            for (let i=projectiles.length-1; i>=0; i--) {
-                const proj = projectiles[i];
-                for (let j=enemies.length-1; j>=0; j--) {
-                    if (proj.mesh.position.distanceTo(enemies[j].mesh.position) < 1.65) {
-                        createExplosion(proj.mesh.position);
-                        scene.remove(proj.mesh); projectiles.splice(i,1);
+        function checkHits(){
+            for(let i=projectiles.length-1;i>=0;i--){
+                const pr = projectiles[i];
+                for(let j=enemies.length-1;j>=0;j--){
+                    if(pr.mesh.position.distanceTo(enemies[j].mesh.position) < 1.6){
+                        createParticle(pr.mesh.position.clone(), new THREE.Vector3(0,4,0), 1.2, 0xff3311, true);
+                        scene.remove(pr.mesh); projectiles.splice(i,1);
                         scene.remove(enemies[j].mesh); enemies.splice(j,1);
-                        score += 125; updateScore(); updateTargetsLeft();
-                        setTimeout(() => { if (enemies.length < 5) spawnEnemy(); }, 2200);
+                        score += 100; updateScore(); updateTargetsLeft();
+                        setTimeout(()=>{ if(enemies.length < 5) spawnEnemy(); }, 1800);
                         return;
                     }
                 }
             }
         }
 
-        function spawnEnemy() {
-            const positions = [[-13,0.95,-13],[13,0.95,-13],[-13,0.95,11],[11,0.95,13],[0,0.95,-10],[-9,0.95,8],[8,0.95,-7]];
-            let pos; let attempts=0;
-            do { pos = positions[Math.floor(Math.random()*positions.length)]; attempts++; }
-            while (attempts < 8 && camera.position.distanceTo(new THREE.Vector3(pos[0],1.6,pos[2])) < 6);
-
+        function spawnEnemy(){
+            const spots = [[-12,1,-12],[12,1,-10],[-10,1,10],[10,1,11],[0,1,-9],[-8,1,7]];
+            let p = spots[Math.floor(Math.random()*spots.length)];
             let mesh;
-            if (goblinTexture) {
-                const geo = new THREE.PlaneGeometry(1.5, 2.1);
-                const mat = new THREE.MeshBasicMaterial({ map: goblinTexture, transparent: true, side: THREE.DoubleSide });
-                mesh = new THREE.Mesh(geo, mat);
+            if(goblinTexture){
+                const g = new THREE.PlaneGeometry(1.6, 2.2);
+                const m = new THREE.MeshBasicMaterial({map: goblinTexture, transparent:true, side:THREE.DoubleSide});
+                mesh = new THREE.Mesh(g, m);
                 mesh.userData.isGoblin = true;
             } else {
-                const geo = new THREE.CylinderGeometry(0.65, 0.55, 1.75, 7);
-                const mat = new THREE.MeshPhongMaterial({ color: 0x9f1f1f, emissive: 0x4a0f0f });
-                mesh = new THREE.Mesh(geo, mat);
+                mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.6,0.5,1.8,6), new THREE.MeshPhongMaterial({color:0x9f1f1f, emissive:0x3a0a0a}));
             }
-            mesh.position.set(pos[0], pos[1], pos[2]);
+            mesh.position.set(p[0], p[1], p[2]);
             scene.add(mesh);
-            enemies.push({ mesh });
+            enemies.push({mesh});
             updateTargetsLeft();
         }
 
-        function setupScene() {
+        function setupScene(){
             scene = new THREE.Scene();
-            scene.fog = new THREE.Fog(0x111111, 7, 45);
-            camera = new THREE.PerspectiveCamera(72, window.innerWidth/window.innerHeight, 0.1, 100);
-            camera.position.set(0, 1.65, 6); camera.rotation.order = 'YXZ';
+            scene.fog = new THREE.Fog(0x0a0a0a, 6, 40);
+
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+            camera.position.set(0, 1.7, 7);           // Slightly higher and further back
+            camera.rotation.order = 'YXZ';
+
             renderer = new THREE.WebGLRenderer({antialias:true});
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('game-container').appendChild(renderer.domElement);
 
-            scene.add(new THREE.AmbientLight(0x5a5a5a, 0.82));
-            const dir = new THREE.DirectionalLight(0xfff4d9, 1.3); dir.position.set(12,22,8); scene.add(dir);
-            scene.add(new THREE.HemisphereLight(0xaaaabb, 0x1a1a1a, 0.45));
-            const red = new THREE.PointLight(0xff3311, 0.7, 28); red.position.set(-8,4,-8); scene.add(red);
+            // Lights
+            scene.add(new THREE.AmbientLight(0x555555, 0.85));
+            const sun = new THREE.DirectionalLight(0xfff0cc, 1.2); sun.position.set(10,25,10); scene.add(sun);
+            scene.add(new THREE.HemisphereLight(0xaaaabb, 0x222222, 0.4));
 
-            const floor = new THREE.Mesh(new THREE.PlaneGeometry(42,42), new THREE.MeshPhongMaterial({color:0x2f2924}));
-            floor.rotation.x = -Math.PI/2; scene.add(floor);
-            const ceil = new THREE.Mesh(new THREE.PlaneGeometry(42,42), new THREE.MeshPhongMaterial({color:0x1a1816}));
-            ceil.rotation.x = -Math.PI/2; ceil.position.y=5.8; scene.add(ceil);
+            // Floor
+            const floorMat = new THREE.MeshPhongMaterial({color: 0x2a2520, shininess:4});
+            const floor = new THREE.Mesh(new THREE.PlaneGeometry(45,45), floorMat);
+            floor.rotation.x = -Math.PI/2;
+            floor.position.y = 0;
+            scene.add(floor);
 
-            // Walls & pillars (simplified for this update)
-            const wMat = new THREE.MeshPhongMaterial({color:0x3f362f});
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.2,5.5,42), wMat)).position.set(-20.6,2.75,0);
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.2,5.5,42), wMat)).position.set(20.6,2.75,0);
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(42,5.5,1.2), wMat)).position.set(0,2.75,-20.6);
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(42,5.5,1.2), wMat)).position.set(0,2.75,20.6);
-            scene.add(new THREE.Mesh(new THREE.BoxGeometry(3.2,4.2,3.2), new THREE.MeshPhongMaterial({color:0x463c34}))).position.set(0,2.1,0);
+            // Simple walls & pillars
+            const wallMat = new THREE.MeshPhongMaterial({color:0x3a322b});
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(1,6,45), wallMat)).position.set(-22,3,0);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(1,6,45), wallMat)).position.set(22,3,0);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(45,6,1), wallMat)).position.set(0,3,-22);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(45,6,1), wallMat)).position.set(0,3,22);
+            scene.add(new THREE.Mesh(new THREE.BoxGeometry(3,4,3), new THREE.MeshPhongMaterial({color:0x403830}))).position.set(0,2,0);
 
-            // Load goblin texture
-            new THREE.TextureLoader().load('asset/goblin-creature.jpg', tex => { goblinTexture = tex; console.log('%c[Goblin Texture] Loaded!', 'color:#4ade80'); });
+            // === LOAD GOBLIN TEXTURE THEN SPAWN ENEMIES ===
+            const loader = new THREE.TextureLoader();
+            loader.load('asset/goblin-creature.jpg', (tex) => {
+                goblinTexture = tex;
+                console.log('%c[Goblins] Texture loaded successfully!', 'color:#4ade80');
+                // Spawn enemies only after texture is ready
+                for(let i=0; i<6; i++) spawnEnemy();
+            }, undefined, () => {
+                // If texture fails to load, still spawn fallback enemies
+                console.warn('Goblin texture failed to load, using fallback');
+                for(let i=0; i<5; i++) spawnEnemy();
+            });
 
-            for(let i=0; i<5; i++) spawnEnemy();
-            camera.rotation.y = yaw; camera.rotation.x = pitch;
+            // Initial camera rotation
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
         }
 
-        function updateMovement(dt) {
-            const d = PLAYER_SPEED * dt; const yAxis = new THREE.Vector3(0,1,0);
-            if(moveForward){ const dir=new THREE.Vector3(0,0,-1).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
-            if(moveBackward){ const dir=new THREE.Vector3(0,0,1).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
-            if(moveLeft){ const dir=new THREE.Vector3(-1,0,0).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
-            if(moveRight){ const dir=new THREE.Vector3(1,0,0).applyAxisAngle(yAxis,yaw); const nx=camera.position.x+dir.x*d, nz=camera.position.z+dir.z*d; if(!checkPlayerCollision(nx,camera.position.z))camera.position.x=nx; if(!checkPlayerCollision(camera.position.x,nz))camera.position.z=nz; }
-            camera.position.y=1.65; camera.position.x=Math.max(-19,Math.min(19,camera.position.x)); camera.position.z=Math.max(-19,Math.min(19,camera.position.z));
+        function updateMovement(dt){
+            const d = PLAYER_SPEED * dt;
+            const ya = new THREE.Vector3(0,1,0);
+            if(moveForward){ const dir = new THREE.Vector3(0,0,-1).applyAxisAngle(ya,yaw); const nx = camera.position.x + dir.x*d; const nz = camera.position.z + dir.z*d;
+                if(!checkPlayerCollision(nx, camera.position.z)) camera.position.x = nx;
+                if(!checkPlayerCollision(camera.position.x, nz)) camera.position.z = nz; }
+            if(moveBackward){ const dir = new THREE.Vector3(0,0,1).applyAxisAngle(ya,yaw); const nx = camera.position.x + dir.x*d; const nz = camera.position.z + dir.z*d;
+                if(!checkPlayerCollision(nx, camera.position.z)) camera.position.x = nx;
+                if(!checkPlayerCollision(camera.position.x, nz)) camera.position.z = nz; }
+            if(moveLeft){ const dir = new THREE.Vector3(-1,0,0).applyAxisAngle(ya,yaw); const nx = camera.position.x + dir.x*d; const nz = camera.position.z + dir.z*d;
+                if(!checkPlayerCollision(nx, camera.position.z)) camera.position.x = nx;
+                if(!checkPlayerCollision(camera.position.x, nz)) camera.position.z = nz; }
+            if(moveRight){ const dir = new THREE.Vector3(1,0,0).applyAxisAngle(ya,yaw); const nx = camera.position.x + dir.x*d; const nz = camera.position.z + dir.z*d;
+                if(!checkPlayerCollision(nx, camera.position.z)) camera.position.x = nx;
+                if(!checkPlayerCollision(camera.position.x, nz)) camera.position.z = nz; }
+
+            camera.position.y = 1.7; // Keep player above floor
         }
 
-        function animate() {
+        function animate(){
             requestAnimationFrame(animate);
-            const dt = Math.min(clock.getDelta(), 0.08);
-            updateMovement(dt); updateProjectiles(dt); updateParticles(dt); checkProjectileEnemyCollisions();
+            const dt = Math.min(clock.getDelta(), 0.1);
 
-            // Make goblin enemies face the player (billboarding)
-            enemies.forEach(e => { if(e.mesh.userData.isGoblin){ const p = e.mesh.position; e.mesh.lookAt(camera.position.x, p.y, camera.position.z); } });
+            updateMovement(dt);
+            updateProjectiles(dt);
+            updateParticles(dt);
+            checkHits();
 
-            camera.rotation.y = yaw; camera.rotation.x = pitch;
+            // Billboard goblins
+            enemies.forEach(e => {
+                if(e.mesh.userData.isGoblin){
+                    const p = e.mesh.position;
+                    e.mesh.lookAt(camera.position.x, p.y, camera.position.z);
+                }
+            });
+
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
             renderer.render(scene, camera);
         }
 
-        function setupControls() {
-            const btnF = document.getElementById('btn-forward'), btnB = document.getElementById('btn-backward'), btnL = document.getElementById('btn-left'), btnR = document.getElementById('btn-right'), btnS = document.getElementById('btn-shoot');
+        function setupControls(){
             const c = renderer.domElement;
+            const bind = (id, flag) => {
+                const b = document.getElementById(id);
+                b.addEventListener('touchstart', e=>{e.preventDefault(); flag(true)}, {passive:false});
+                const end = e => {e.preventDefault(); flag(false)};
+                b.addEventListener('touchend', end, {passive:false});
+                b.addEventListener('touchcancel', end, {passive:false});
+            };
+            bind('btn-forward', v=>moveForward=v);
+            bind('btn-backward', v=>moveBackward=v);
+            bind('btn-left', v=>moveLeft=v);
+            bind('btn-right', v=>moveRight=v);
 
-            const bind = (btn, set) => { btn.addEventListener('touchstart', e=>{e.preventDefault();set(true)},{passive:false}); const end=e=>{e.preventDefault();set(false)}; btn.addEventListener('touchend',end,{passive:false}); btn.addEventListener('touchcancel',end,{passive:false}); };
-            bind(btnF, v=>moveForward=v); bind(btnB, v=>moveBackward=v); bind(btnL, v=>moveLeft=v); bind(btnR, v=>moveRight=v);
+            const shootBtn = document.getElementById('btn-shoot');
+            let si = null;
+            shootBtn.addEventListener('touchstart', e=>{ e.preventDefault(); fireProjectile(); if(si)clearInterval(si); si=setInterval(fireProjectile,150); }, {passive:false});
+            const stopShoot = () => {if(si){clearInterval(si);si=null}};
+            shootBtn.addEventListener('touchend', stopShoot, {passive:false});
 
-            let si=null; btnS.addEventListener('touchstart',e=>{e.preventDefault();fireProjectile(); if(si)clearInterval(si); si=setInterval(fireProjectile,160)},{passive:false});
-            const stop=()=>{if(si){clearInterval(si);si=null}}; btnS.addEventListener('touchend',stop,{passive:false}); btnS.addEventListener('touchcancel',stop,{passive:false});
+            // Touch look
+            c.addEventListener('touchstart', e => { if(e.target.closest('#controls') || e.target.id==='btn-shoot') return; isLooking=true; lastTouchX=e.touches[0].clientX; lastTouchY=e.touches[0].clientY; }, {passive:false});
+            c.addEventListener('touchmove', e => { if(!isLooking) return; const t=e.touches[0]; yaw += (t.clientX-lastTouchX)*0.003; pitch -= (t.clientY-lastTouchY)*0.003; pitch=Math.max(-1.3,Math.min(0.9,pitch)); lastTouchX=t.clientX; lastTouchY=t.clientY; }, {passive:false});
+            c.addEventListener('touchend', ()=> isLooking=false);
 
-            c.addEventListener('touchstart',e=>{if(e.target.closest('#controls')||e.target.id==='btn-shoot')return; isLooking=true; lastTouchX=e.touches[0].clientX; lastTouchY=e.touches[0].clientY;e.preventDefault()}, {passive:false});
-            c.addEventListener('touchmove',e=>{if(!isLooking)return; const t=e.touches[0]; yaw+= (t.clientX-lastTouchX)*LOOK_SENS; pitch-=(t.clientY-lastTouchY)*LOOK_SENS; pitch=Math.max(-1.35,Math.min(1,pitch)); lastTouchX=t.clientX; lastTouchY=t.clientY; e.preventDefault()}, {passive:false});
-            c.addEventListener('touchend',()=>isLooking=false);
-
-            window.addEventListener('resize',()=>{camera.aspect=window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth,window.innerHeight)});
-            c.addEventListener('contextmenu',e=>e.preventDefault());
+            window.addEventListener('resize', ()=>{ camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         }
 
-        function startGame() {
-            initTailwind(); setupScene(); clock=new THREE.Clock(); setupControls(); updateScore(); updateTargetsLeft(); animate();
-            console.log('%c[Doom FPS] Game updated with goblin enemies!', 'color:#c53030');
+        function startGame(){
+            setupScene();
+            clock = new THREE.Clock();
+            setupControls();
+            updateScore();
+            updateTargetsLeft();
+            animate();
+            console.log('%c[Doom FPS] Fixed camera + goblin enemies ready', 'color:#22c55e');
         }
         window.onload = startGame;
+
+        // Touch look variables
+        let isLooking = false, lastTouchX=0, lastTouchY=0;
     </script>
 </body>
 </html>
